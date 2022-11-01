@@ -1,0 +1,4 @@
+discord
+asyncio
+youtube_dl
+sqlite3
