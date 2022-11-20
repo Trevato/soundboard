@@ -1,6 +1,7 @@
 import discord
 import asyncio
 import youtube_dl
+import os
 
 import sqlite3 as sl
 
@@ -147,6 +148,8 @@ class Soundboard(commands.Cog):
                         if ctx.author in channel.members:
                             voice = await channel.connect()
 
+                            print("Connected to " + channel.name)
+
                             player = await YTDLSource.from_url(sound_path, loop=bot.loop, stream=True)
                             print("starting player")
                             voice.play(player, after=lambda e: print(f'Player error: {e}') if e else None)
@@ -259,9 +262,14 @@ async def on_ready():
 async def main():
     async with bot:
         await bot.add_cog(Soundboard(bot))
-        # Get the token from the token.txt file
-        with open("token.txt", "r") as f:
-            await bot.start(f.read())
+        # Get the token from the environment variable or from the file
+        token = os.getenv("TOKEN")
+
+        if token is None:
+            print("\nERROR:\n\n\tMissing Discord bot's API token.\n\tPlease add the TOKEN environment variable.\n\tFor more info: https://www.writebots.com/discord-bot-token/")
+            return
+
+        await bot.start(token)
 
 
 asyncio.run(main())
