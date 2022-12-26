@@ -8,25 +8,25 @@ from discord.ext import commands
 
 
 # Suppress noise about console usage from errors
-youtube_dl.utils.bug_reports_message = lambda: ''
+youtube_dl.utils.bug_reports_message = lambda: ""
 
 
 ytdl_format_options = {
-    'format': 'bestaudio/best',
-    'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
-    'restrictfilenames': True,
-    'noplaylist': True,
-    'nocheckcertificate': True,
-    'ignoreerrors': False,
-    'logtostderr': False,
-    'quiet': True,
-    'no_warnings': True,
-    'default_search': 'auto',
-    'source_address': '0.0.0.0',  # bind to ipv4 since ipv6 addresses cause issues sometimes
+    "format": "bestaudio/best",
+    "outtmpl": "%(extractor)s-%(id)s-%(title)s.%(ext)s",
+    "restrictfilenames": True,
+    "noplaylist": True,
+    "nocheckcertificate": True,
+    "ignoreerrors": False,
+    "logtostderr": False,
+    "quiet": True,
+    "no_warnings": True,
+    "default_search": "auto",
+    "source_address": "0.0.0.0",  # bind to ipv4 since ipv6 addresses cause issues sometimes
 }
 
 ffmpeg_options = {
-    'options': '-vn',
+    "options": "-vn",
 }
 
 ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
@@ -38,19 +38,21 @@ class YTDLSource(discord.PCMVolumeTransformer):
 
         self.data = data
 
-        self.title = data.get('title')
-        self.url = data.get('url')
+        self.title = data.get("title")
+        self.url = data.get("url")
 
     @classmethod
     async def from_url(cls, url, *, loop=None, stream=False):
         loop = loop or asyncio.get_event_loop()
-        data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=not stream))
+        data = await loop.run_in_executor(
+            None, lambda: ytdl.extract_info(url, download=not stream)
+        )
 
-        if 'entries' in data:
+        if "entries" in data:
             # take first item from a playlist
-            data = data['entries'][0]
+            data = data["entries"][0]
 
-        filename = data['url'] if stream else ytdl.prepare_filename(data)
+        filename = data["url"] if stream else ytdl.prepare_filename(data)
         return cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options), data=data)
 
 
@@ -80,7 +82,9 @@ class Soundboard(commands.Cog):
             return
 
         # Check that the message has a valid youtube url
-        if not ctx.message.content.split()[2].startswith("https://youtu.be/") and not ctx.message.content.split()[2].startswith("https://www.youtube.com/"):
+        if not ctx.message.content.split()[2].startswith(
+            "https://youtu.be/"
+        ) and not ctx.message.content.split()[2].startswith("https://www.youtube.com/"):
             # Send a message to the user
             await ctx.send("Invalid youtube url")
             return
@@ -94,13 +98,19 @@ class Soundboard(commands.Cog):
 
         # Check if the user already has a sound with that name
         c = conn.cursor()
-        c.execute("SELECT * FROM sounds WHERE user_id = ? AND sound_name = ?", (user_id, sound_name))
+        c.execute(
+            "SELECT * FROM sounds WHERE user_id = ? AND sound_name = ?",
+            (user_id, sound_name),
+        )
         if c.fetchone() is not None:
             await ctx.send("You already have a sound with that name")
             return
 
         # Insert the sound into the database
-        c.execute("INSERT INTO sounds (user_id, sound_name, sound_path) VALUES (?, ?, ?)", (user_id, sound_name, sound_path))
+        c.execute(
+            "INSERT INTO sounds (user_id, sound_name, sound_path) VALUES (?, ?, ?)",
+            (user_id, sound_name, sound_path),
+        )
         conn.commit()
 
         # Send a message to the user
@@ -126,13 +136,18 @@ class Soundboard(commands.Cog):
 
         # Check if the user has a sound with that name
         c = conn.cursor()
-        c.execute("SELECT * FROM sounds WHERE user_id = ? AND sound_name = ?", (user_id, name))
+        c.execute(
+            "SELECT * FROM sounds WHERE user_id = ? AND sound_name = ?", (user_id, name)
+        )
         if c.fetchone() is None:
             await ctx.send("You don't have a sound with that name")
             return
 
         # Get the url of the sound
-        c.execute("SELECT sound_path FROM sounds WHERE user_id = ? AND sound_name = ?", (user_id, name))
+        c.execute(
+            "SELECT sound_path FROM sounds WHERE user_id = ? AND sound_name = ?",
+            (user_id, name),
+        )
         sound_path = c.fetchone()[0]
 
         # Check that the user and the bot are in a mutual voice channel
@@ -147,11 +162,18 @@ class Soundboard(commands.Cog):
                         if ctx.author in channel.members:
                             voice = await channel.connect()
 
-                            player = await YTDLSource.from_url(sound_path, loop=bot.loop, stream=True)
+                            player = await YTDLSource.from_url(
+                                sound_path, loop=bot.loop, stream=True
+                            )
                             print("starting player")
-                            voice.play(player, after=lambda e: print(f'Player error: {e}') if e else None)
+                            voice.play(
+                                player,
+                                after=lambda e: print(f"Player error: {e}")
+                                if e
+                                else None,
+                            )
                             print("playing")
-                            await ctx.send(f'Now playing: {player.title}')
+                            await ctx.send(f"Now playing: {player.title}")
 
                             # Check if the player is still playing
                             while voice.is_playing():
@@ -159,7 +181,6 @@ class Soundboard(commands.Cog):
 
                             await voice.disconnect()
                             return
-
 
     # Delete command to delete a sound
     @commands.command()
@@ -181,13 +202,17 @@ class Soundboard(commands.Cog):
 
         # Check if the user has a sound with that name
         c = conn.cursor()
-        c.execute("SELECT * FROM sounds WHERE user_id = ? AND sound_name = ?", (user_id, name))
+        c.execute(
+            "SELECT * FROM sounds WHERE user_id = ? AND sound_name = ?", (user_id, name)
+        )
         if c.fetchone() is None:
             await ctx.send("You don't have a sound with that name")
             return
 
         # Delete the sound from the database
-        c.execute("DELETE FROM sounds WHERE user_id = ? AND sound_name = ?", (user_id, name))
+        c.execute(
+            "DELETE FROM sounds WHERE user_id = ? AND sound_name = ?", (user_id, name)
+        )
         conn.commit()
 
         # Send a message to the user
@@ -228,7 +253,9 @@ class Soundboard(commands.Cog):
             return
 
         # Send a message to the user
-        await ctx.send("```!new <sound name> <url> - Creates a new sound\n!play <sound name> - Plays a sound\n!delete <sound name> - Deletes a sound\n!list - Lists all the sounds```")
+        await ctx.send(
+            "```!new <sound name> <url> - Creates a new sound\n!play <sound name> - Plays a sound\n!delete <sound name> - Deletes a sound\n!list - Lists all the sounds```"
+        )
 
 
 print("Connecting to database...")
@@ -237,7 +264,9 @@ print("Connected to database!")
 
 # create the table if it doesn't exist
 # Schema: (id, use_id, sound_name, sound_path)
-conn.execute("CREATE TABLE IF NOT EXISTS sounds (id INTEGER PRIMARY KEY, user_id INTEGER, sound_name TEXT, sound_path TEXT)")
+conn.execute(
+    "CREATE TABLE IF NOT EXISTS sounds (id INTEGER PRIMARY KEY, user_id INTEGER, sound_name TEXT, sound_path TEXT)"
+)
 
 
 intents = discord.Intents.default()
@@ -245,7 +274,7 @@ intents.message_content = True
 
 bot = commands.AutoShardedBot(
     command_prefix=commands.when_mentioned_or("!"),
-    description='Relatively simple music bot example',
+    description="Relatively simple music bot example",
     intents=intents,
 )
 
